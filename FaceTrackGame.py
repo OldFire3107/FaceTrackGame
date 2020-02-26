@@ -6,6 +6,7 @@ from random import random
 
 face_cascade = cv2.CascadeClassifier('//usr//share//opencv//haarcascades//haarcascade_frontalface_default.xml')
 cap = cv2.VideoCapture(0)
+gameOver = False
 
 print(cap.get(cv2.CAP_PROP_FPS))
 
@@ -24,24 +25,28 @@ def FindAFace():
             print("Detected!")
             break
 
-def CheckGameOver(x, y, game):
-    for i in range(x - 6, x + 7):
-        if game[y-6, i, 0]:
+def CheckGameOver(x, y, game, radius):
+    global gameOver
+    for i in range(x - radius, x + radius + 1):
+        if game[y-radius, i, 0]:
             gameOver = True
-            return
-        if game[y+7, i, 0]:
+            return True
+        if game[y+radius+1, i, 0]:
             gameOver = True
-            return
+            return True
 
-    for i in range(y-6, y+7):
-        if game[x-6, i, 0]:
+    for i in range(y - radius, y + radius+1):
+        if game[i, x-radius, 0]:
             gameOver = True
-            return
-        if game[x+7, i, 0]:
+            return True
+        if game[i, x+radius+1, 0]:
             gameOver = True
-            return
+            return True
 
-speed = 4
+    return False
+
+speed = 2
+score = 0
 FindAFace()
 seed(time.time())
 rectYi = [0, 0, 0 ,0]
@@ -49,7 +54,6 @@ rectYf =  [0, 0, 0, 0]
 safeZone = [100, 100, 100, 100]
 safeZoneFlag = [True, False, False, False]
 rectFlag = [True, False, False, False]
-gameOver = False
 
 while(True):
     _, frame = cap.read()
@@ -81,7 +85,7 @@ while(True):
     if not gameOver:
         for i in range(4):
             if safeZoneFlag[i]:
-                safeZone[i] = int(frame.shape[1] * 7.0 / 8.0 * random() + 40)
+                safeZone[i] = int(frame.shape[1] * 3.0 / 4.0 * random() + 80)
                 safeZoneFlag[i] = False
 
             if rectFlag[i]:
@@ -99,26 +103,31 @@ while(True):
                     rectYi[i] = 0
                     rectYf[i] = 0
                     rectFlag[i] = 0
-                    safeZoneFlag = 0
+                    safeZoneFlag[i] = 0
 
                 if rectYi[i] >= 90:
-                    if i != 3:
+                    if i < 3:
                         if not rectFlag[i + 1]:
                             safeZoneFlag[i + 1] = True
+                            score += 1
                         rectFlag[i + 1] = True
                     else:
-                        if not rectFlag[i + 1]:
+                        if not rectFlag[0]:
                             safeZoneFlag[0] = True
+                            score += 1
                         rectFlag[0] = True
 
         print(rectYf, rectYi, safeZone, safeZoneFlag)
 
-        cv2.circle(game, (centerX, centerY), 11, (0, 140, 255), 15)
-
+        CheckGameOver(centerX, centerY, game, 21)
+        cv2.circle(game, (centerX, centerY), 11, (0, 140, 255), 21)
+         
+        print(gameOver)  
 
     else:
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(game, "Game Over!", (centerX, centerY), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(game, "Game Over! Score: " + str(score) , (centerX - 180, centerY - 10), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        print(score)
 
     cv2.imshow('tracker', frame)
     cv2.imshow('Game', game)
