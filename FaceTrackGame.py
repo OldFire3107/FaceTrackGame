@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 from random import seed
 from random import random
 
@@ -23,14 +24,32 @@ def FindAFace():
             print("Detected!")
             break
 
+def CheckGameOver(x, y, game):
+    for i in range(x - 6, x + 7):
+        if game[y-6, i, 0]:
+            gameOver = True
+            return
+        if game[y+7, i, 0]:
+            gameOver = True
+            return
+
+    for i in range(y-6, y+7):
+        if game[x-6, i, 0]:
+            gameOver = True
+            return
+        if game[x+7, i, 0]:
+            gameOver = True
+            return
+
 speed = 4
 FindAFace()
-seed(1)
+seed(time.time())
 rectYi = [0, 0, 0 ,0]
 rectYf =  [0, 0, 0, 0]
-safeZone = [0, 0, 0, 0]
-safeZoneFlag = [True, False, True, True]
+safeZone = [100, 100, 100, 100]
+safeZoneFlag = [True, False, False, False]
 rectFlag = [True, False, False, False]
+gameOver = False
 
 while(True):
     _, frame = cap.read()
@@ -59,40 +78,47 @@ while(True):
     centerX = int(loc[0] + w / 2)
     centerY = int(loc[1] + h / 2)
 
-    for i in range(4):
-        if safeZoneFlag[i]:
-            safeZone[i] = int(frame.shape[1] * 15 / 16 * random() + 20)
-            safeZoneFlag[i] = False
+    if not gameOver:
+        for i in range(4):
+            if safeZoneFlag[i]:
+                safeZone[i] = int(frame.shape[1] * 7.0 / 8.0 * random() + 40)
+                safeZoneFlag[i] = False
 
-        if rectFlag[i]:
-            cv2.rectangle(game, (0, rectYi[i]), (safeZone[i] - 60, rectYf[i]), (128, 128, 0), -1)
-            cv2.rectangle(game, (safeZone[i] + 60, rectYi[i]), (frame.shape[1] - 1, rectYf[i]), (128, 128, 0), -1)
+            if rectFlag[i]:
+                cv2.rectangle(game, (0, rectYi[i]), (safeZone[i] - 60, rectYf[i]), (128, 128, 0), -1)
+                cv2.rectangle(game, (safeZone[i] + 60, rectYi[i]), (frame.shape[1] - 1, rectYf[i]), (128, 128, 0), -1)
 
-            if rectYf[i] >= 70:
-                rectYi[i] += speed
+                rectYf[i] += speed
+                if rectYf[i] >= 70:
+                    rectYi[i] += speed
 
-            rectYf[i] += speed
+                if rectYf[i] >= frame.shape[0]:
+                    rectYf[i] = frame.shape[0] - 1
 
-            if rectYf[i] >= frame.shape[0]:
-                rectYf[i] = frame.shape[0] - 1
+                if rectYi[i] >= frame.shape[0]:
+                    rectYi[i] = 0
+                    rectYf[i] = 0
+                    rectFlag[i] = 0
+                    safeZoneFlag = 0
 
-            if rectYi[i] >= frame.shape[0]:
-                rectYi[i] = 0
-                rectYf[i] = 0
-                rectFlag[i] = 0
-                safeZoneFlag = 0
+                if rectYi[i] >= 90:
+                    if i != 3:
+                        if not rectFlag[i + 1]:
+                            safeZoneFlag[i + 1] = True
+                        rectFlag[i + 1] = True
+                    else:
+                        if not rectFlag[i + 1]:
+                            safeZoneFlag[0] = True
+                        rectFlag[0] = True
 
-            if rectYi[i] >= 90:
-                if i != 3:
-                    rectFlag[i + 1] = True
-                    safeZoneFlag[i + 1] = True
-                else:
-                    rectFlag[0] = True
-                    safeZoneFlag[0] = True
+        print(rectYf, rectYi, safeZone, safeZoneFlag)
 
-    print(rectYf, rectYi)
+        cv2.circle(game, (centerX, centerY), 11, (0, 140, 255), 15)
 
-    cv2.circle(game, (centerX, centerY), 10, (0, 140, 255), 11)
+
+    else:
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(game, "Game Over!", (centerX, centerY), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
     cv2.imshow('tracker', frame)
     cv2.imshow('Game', game)
